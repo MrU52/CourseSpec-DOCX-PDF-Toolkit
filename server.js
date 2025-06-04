@@ -5,6 +5,7 @@ const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const cors = require("cors");
 const path = require("path");
+const libre = require("libreoffice-convert");
 const mammoth = require("mammoth");
 const puppeteer = require("puppeteer");
 
