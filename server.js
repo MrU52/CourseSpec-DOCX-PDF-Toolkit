@@ -41,7 +41,30 @@ function findTemplateFile() {
 
 
 
+// DOCX → PDF conversion
+app.post("/upload", upload.single("file"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).send("No file uploaded");
+  }
 
+  const inputPath = req.file.path;
+  const file = fs.readFileSync(inputPath);
+  const outputExt = ".pdf";
+
+  libre.convert(file, outputExt, undefined, (err, done) => {
+    if (err) {
+      console.error("❌ Conversion failed:", err);
+      return res.status(500).send("Conversion failed");
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=converted.pdf");
+    res.send(done);
+
+    // Cleanup
+    fs.unlinkSync(inputPath);
+  });
+});
 
 
 
