@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>CourseSpec ⟡ DOCX Generator</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+
+    <!-- ACE Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.9.6/ace.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.9.6/mode-json.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.9.6/theme-tomorrow_night_bright.min.js" defer></script>
+
+    <!-- GSAP (animation) + Confetti burst -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" defer></script>
+
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --bg-1: #ecf0f7;
+            --bg-2: #ffffff;
+            --glass: rgba(255, 255, 255, 0.55);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Animated gradient backdrop */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 25% 25%, #111a48 0%, transparent 100%),
+                radial-gradient(circle at 75% 75%, #052d2f 0%, transparent 100%),
+                radial-gradient(circle at 75% 25%, #12321e 0%, transparent 100%);
+            animation: float 20s ease-in-out infinite;
+            z-index: -2;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: scale(1) translateY(0);
+            }
+
+            50% {
+                transform: scale(1.05) translateY(-30px);
+            }
+        }
+
+        /* Frosted glass card */
+        .card {
+            max-width: 900px;
+            margin: 5vh auto;
+            padding: 2.5rem 2rem 3rem;
+            border-radius: 20px;
+            background: var(--glass);
+            backdrop-filter: blur(16px) saturate(180%);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, .12);
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            text-align: center;
+            margin: 0 0 1.5rem;
+            display: flex;
+            justify-content: center;
+            gap: .6rem;
+            align-items: center;
+        }
+
+        h1 span {
+            font-size: 2.2rem;
+        }
+
+        /* Ace editor wrapper */
+        #editor {
+            height: 330px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px #00000010;
+        }
+
+        /* Button */
+        #generateBtn {
+            all: unset;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 2rem auto 0;
+            padding: 0.9rem 1.6rem;
+            background: var(--primary);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            width: fit-content;
+            cursor: pointer;
+            transition: background 0.25s ease, transform 0.25s;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        #generateBtn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        #generateBtn:active {
+            transform: scale(.97);
+        }
+
+        /* Status chip */
+        #status {
+            margin-top: 1.2rem;
+            text-align: center;
+            font-weight: 600;
+            min-height: 1.2em;
+        }
+
+        #status.error {
+            color: #dc2626;
+        }
+
+        #status.success {
+            color: #16a34a;
+        }
+    </style>
+</head>
+
+
+
+
+
+
+
+
+<body>
+    <div class="card" id="card">
+        <h1><span>📄</span> Generate DOCX from JSON</h1>
+
+<div id="editor">
+{
+  "CourseTitle": "GG",
+  "CourseCode": "AYSM",
+  "ContentTable": [
+    {
+      "ContentTableTopic": "Intro to JS",
+      "TopicHours": "2"
+    }
+  ]
+}
+</div>
+
+
+        <button id="generateBtn">
+            <span>🚀</span> Generate DOCX
+        </button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        /* Wait until ACE & GSAP are loaded */
+        window.addEventListener('load', () => {
+            // 1️⃣  ACE editor setup
+            const editor = ace.edit("editor");
+            editor.session.setMode("ace/mode/json");
+            editor.setTheme("ace/theme/tomorrow_night_bright");
+            editor.setOptions({ fontSize: "14px", wrap: true });
+
+            // 2️⃣  Simple GSAP entry animation
+            gsap.from("#card", { opacity: 0, y: 60, duration: 1, ease: "power3.out" });
+
+            // 3️⃣  Handle click
+            const btn = document.getElementById("generateBtn");
+            const status = document.getElementById("status");
+
+            btn.addEventListener("click", async () => {
+                status.textContent = ""; status.className = "";
+
+                let jsonData;
+                try {
+                    jsonData = JSON.parse(editor.getValue());
+                } catch (e) {
+                    status.textContent = "❌ Invalid JSON";
+                    status.classList.add("error");
+                    gsap.fromTo(status, { y: -5 }, { y: 0, duration: .2, repeat: 3, yoyo: true });
+                    return;
+                }
+
+                btn.disabled = true; btn.style.opacity = ".7"; btn.textContent = "⏳ Generating…";
+
+                try {
+                    // Change this to your local or public server as needed
+                    const API_BASE_URL = window.location.hostname === "localhost"
+                    ? "http://localhost:3000"
+                    : "https://fe23-151-255-5-98.ngrok-free.app";
+
+                    const res = await fetch(`${API_BASE_URL}/generate-docx`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ data: jsonData })
+                    });
+
+                    if (!res.ok) throw new Error("Server error");
+
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url; a.download = "course-spec.docx";
+                    document.body.appendChild(a); a.click(); a.remove();
+                    URL.revokeObjectURL(url);
+
+                    status.textContent = "✅ DOCX downloaded!";
+                    status.classList.add("success");
+
+                    // Confetti celebration 🎉
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.85 } });
+
+                } catch (err) {
+                    console.error(err);
+                    status.textContent = "❌ Failed to generate DOCX";
+                    status.classList.add("error");
+                } finally {
+                    btn.disabled = false; btn.style.opacity = "1"; btn.textContent = "🚀 Generate DOCX";
+                }
+            });
+        });
+    </script>
+</body>
+
+
+
+
+<hr style="margin: 3rem 0; border: none; border-top: 2px dashed #ccc;" />
+
+<h1><span>📤</span> Convert DOCX to PDF</h1>
+
+<form id="uploadForm" style="text-align: center; margin-top: 1rem;">
+    <input type="file" name="file" accept=".docx" required />
+    <br /><br />
+    <button type="submit" id="uploadBtn">📎 Upload & Convert</button>
+    <div id="uploadStatus" style="margin-top: 1rem; font-weight: 600;"></div>
+</form>
+
+<script>
+    const uploadForm = document.getElementById("uploadForm");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const uploadStatus = document.getElementById("uploadStatus");
+
+    uploadForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fileInput = uploadForm.querySelector("input[type=file]");
+        if (!fileInput.files.length) return;
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = "⏳ Uploading...";
+        uploadStatus.textContent = "";
+        uploadStatus.className = "";
+
+        try {
+            
+                    
+            const res = await fetch("http://localhost:3000/upload", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!res.ok) throw new Error("Conversion failed");
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "converted.pdf";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+
+            uploadStatus.textContent = "✅ PDF downloaded!";
+            uploadStatus.style.color = "#16a34a";
+        } catch (err) {
+            console.error(err);
+            uploadStatus.textContent = "❌ Conversion failed";
+            uploadStatus.style.color = "#dc2626";
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = "📎 Upload & Convert";
+        }
+    });
+</script>
+
+</html>
