@@ -1,1 +1,1 @@
-# GitHubBasics
+# Course Spec
