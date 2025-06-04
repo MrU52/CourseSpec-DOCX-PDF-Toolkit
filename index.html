@@ -204,13 +204,9 @@
 
                 btn.disabled = true; btn.style.opacity = ".7"; btn.textContent = "⏳ Generating…";
 
-                try {
-                    // Change this to your local or public server as needed
-                    const API_BASE_URL = window.location.hostname === "localhost"
-                    ? "http://localhost:3000"
-                    : "https://fe23-151-255-5-98.ngrok-free.app";
+                try {                    
 
-                    const res = await fetch(`${API_BASE_URL}/generate-docx`, {
+                    const res = await fetch("https://refactored-system-r9p4p9prggx3p9xq-3000.app.github.dev/generate-docx", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ data: jsonData })
@@ -278,7 +274,7 @@
         try {
             
                     
-            const res = await fetch("http://localhost:3000/upload", {
+            const res = await fetch("https://refactored-system-r9p4p9prggx3p9xq-3000.app.github.dev/upload", {
                 method: "POST",
                 body: formData
             });

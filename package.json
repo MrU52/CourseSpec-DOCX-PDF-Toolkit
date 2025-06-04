@@ -17,8 +17,10 @@
     "docxtemplater": "^3.63.2",
     "express": "^5.1.0",
     "libreoffice-convert": "^1.6.1",
+    "mammoth": "^1.9.1",
     "multer": "^2.0.1",
     "node-fetch": "^2.7.0",
-    "pizzip": "^3.2.0"
+    "pizzip": "^3.2.0",
+    "puppeteer": "^24.10.0"
   }
 }

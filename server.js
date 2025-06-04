@@ -5,6 +5,8 @@ const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const cors = require("cors");
 const path = require("path");
+const mammoth = require("mammoth");
+const puppeteer = require("puppeteer");
 
 const app = express();
 app.use(cors());
@@ -37,43 +39,7 @@ function findTemplateFile() {
 }
 
 
-// Upload setup
-const upload = multer({ dest: 'uploads/' });
 
-const { convert } = require("docx2pdf-converter");
-
-app.post('/upload', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).send('No file uploaded');
-    }
-
-    const inputPath = req.file.path;
-    const tempInputPath = `${inputPath}_copy.docx`;
-    const outputPath = `${inputPath}.pdf`;
-
-    // Create a copy in case multer file is still in use
-    fs.copyFileSync(inputPath, tempInputPath);
-
-    // Convert using the safe copy
-    await convert(tempInputPath, outputPath);
-
-    const pdfBuffer = fs.readFileSync(outputPath);
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=converted.pdf");
-    res.send(pdfBuffer);
-
-    // Clean up
-    fs.unlinkSync(inputPath);
-    fs.unlinkSync(tempInputPath);
-    fs.unlinkSync(outputPath);
-    
-  } catch (err) {
-    console.error("❌ Conversion failed:", err);
-    res.status(500).send("Conversion failed");
-  }
-});
 
 
 
@@ -148,26 +114,6 @@ app.post("/generate-docx", async (req, res) => {
   }
 });
 
-
-
-
-// Debug endpoint to check file system
-app.get("/debug", (req, res) => {
-  const info = {
-    currentWorkingDirectory: process.cwd(),
-    dirname: __dirname,
-    templateExists: fs.existsSync(TEMPLATE_PATH),
-    templatePath: TEMPLATE_PATH,
-    possiblePaths: POSSIBLE_PATHS.map(p => ({
-      path: p,
-      exists: fs.existsSync(p)
-    })),
-    filesInCurrentDir: fs.readdirSync(process.cwd()),
-    filesInDirname: fs.readdirSync(__dirname)
-  };
-  
-  res.json(info);
-});
 
 
 
