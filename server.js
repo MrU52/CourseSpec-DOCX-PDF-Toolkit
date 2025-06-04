@@ -40,6 +40,7 @@ function findTemplateFile() {
 
 
 
+const upload = multer({ dest: "uploads/" });
 
 // DOCX → PDF conversion
 app.post("/upload", upload.single("file"), (req, res) => {
