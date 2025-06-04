@@ -206,7 +206,7 @@
 
                 try {                    
 
-                    const res = await fetch("https://refactored-system-r9p4p9prggx3p9xq-3000.app.github.dev/generate-docx", {
+                    const res = await fetch("https://githubbasics-production.up.railway.app/generate-docx", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ data: jsonData })
@@ -274,7 +274,7 @@
         try {
             
                     
-            const res = await fetch("https://refactored-system-r9p4p9prggx3p9xq-3000.app.github.dev/upload", {
+            const res = await fetch("https://githubbasics-production.up.railway.app/upload", {
                 method: "POST",
                 body: formData
             });
