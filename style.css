@@ -71,3 +71,25 @@
 
 /* file info */
 #fileInfo{font-size:.9rem;margin-top:.7rem;color:#e2e8f0;}
+
+/* match first card width */
+.upload-card { max-width: 900px; margin: 3rem auto; }
+
+.dropzone{
+  border:2px dashed var(--primary); border-radius:12px;
+  padding:2rem 1rem; text-align:center; background:#8da2c755;
+  cursor:pointer; transition:.25s;
+}
+.dropzone.dragover{ background:#4c8df555; border-color:#fff; }
+
+.file-row{display:flex;justify-content:space-between;align-items:center;margin-top:1rem;}
+#fileInfo{font-size:.9rem;color:#e2e8f0;}
+
+.circle{transform:rotate(-90deg);}
+.circle circle{
+  fill:none; stroke:var(--primary); stroke-width:4;
+  stroke-dasharray:100 100; stroke-dashoffset:100;
+  transition:stroke-dashoffset .4s linear;
+}
+.circle text{fill:#fff;font-size:.55rem;transform:rotate(90deg);}
+.hidden{display:none;}

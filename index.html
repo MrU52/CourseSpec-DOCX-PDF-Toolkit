@@ -32,26 +32,33 @@
   </div>
 
 
-  <!-- ⬇⬇  NEW DRAG-AND-DROP UPLOAD AREA  ⬇⬇ -->
-<div class="upload-card">
+
+
+  <!-- ⬇ NEW compact upload card (900 px like the first) -->
+<div class="card upload-card">
   <h1><span>📤</span> Convert DOCX to PDF</h1>
 
+  <!-- Dropzone -->
   <div id="dropzone" class="dropzone">
-      <p id="dzMessage">📂 Drag & drop a DOCX here or click to browse</p>
-      <input type="file" id="fileInput" accept=".docx" hidden />
+    <p id="dzMessage">📂 Drop DOCX here / click to browse</p>
+    <input type="file" id="fileInput" accept=".docx" hidden />
   </div>
 
-  <!-- file name / size -->
-  <div id="fileInfo"></div>
+  <!-- File info + circular progress -->
+  <div class="file-row">
+    <span id="fileInfo"></span>
 
-  <!-- progress -->
-  <div id="progressWrap" class="progress" hidden>
-      <div id="progressBar" class="progress-bar"></div>
+    <svg id="progressCircle" class="circle hidden" width="48" height="48">
+      <circle cx="24" cy="24" r="22" pathLength="100" />
+      <text x="50%" y="50%" dy=".3em" text-anchor="middle" id="pctTxt">0%</text>
+    </svg>
   </div>
 
-  <button id="convertBtn" disabled style="margin-top:1.5rem;">📎 Convert to PDF</button>
-  <div id="upStatus" style="margin-top:1rem;font-weight:600;"></div>
+  <button id="convertBtn" disabled>📎 Convert to PDF</button>
+  <div id="upStatus"></div>
 </div>
+
+
 
 
 
@@ -104,91 +111,85 @@
         }
       });
 
+
+      
+
       // PDF Upload Logic
-
-
-      /* ----------  DRAG-AND-DROP LOGIC  ---------- */
+ //  ─── element refs ───────────────────────────────────────────
 const dz        = document.getElementById("dropzone");
 const dzMsg     = document.getElementById("dzMessage");
 const fileInput = document.getElementById("fileInput");
 const convertBtn= document.getElementById("convertBtn");
+const fileInfo  = document.getElementById("fileInfo");
 const upStatus  = document.getElementById("upStatus");
-const pWrap     = document.getElementById("progressWrap");
-const pBar      = document.getElementById("progressBar");
-const fileInfo   = document.getElementById("fileInfo");
+const circle    = document.getElementById("progressCircle");
+const pctTxt    = document.getElementById("pctTxt");
 let selectedFile;
 
-/* helpers */
-const resetUI = () => {
-  pWrap.hidden = true; pBar.style.width="0%";
-  convertBtn.disabled = true; upStatus.textContent = "";
-};
-
-dz.addEventListener("click", ()=> fileInput.click());
-
-["dragover","dragenter"].forEach(evt =>
-  dz.addEventListener(evt,e=>{ e.preventDefault(); dz.classList.add("dragover");})
-);
-["dragleave","drop"].forEach(evt =>
-  dz.addEventListener(evt,()=> dz.classList.remove("dragover"))
-);
-
-dz.addEventListener("drop", e=>{
-  e.preventDefault();
-  fileInput.files = e.dataTransfer.files;
-  handleFile(fileInput.files[0]);
-});
-fileInput.addEventListener("change", e=> handleFile(e.target.files[0]));
-
-function handleFile(file){
-  if(!file) return;             // guard
-  selectedFile = file;
-  dzMsg.textContent = `📄 ${file.name}`;
-  convertBtn.disabled = false;
-  pWrap.hidden = true; pBar.style.width="0%";
-  fileInfo.textContent = `📄 ${file.name}
-  ${(file.size/1024).toFixed(1)} KB`;
+//  ─── helpers ────────────────────────────────────────────────
+const setPct = p=>{
+  circle.classList.remove("hidden");
+  circle.querySelector("circle").style.strokeDashoffset = 100 - p;
+  pctTxt.textContent = p + "%";
+  if(p===100) setTimeout(()=>circle.classList.add("hidden"), 800);
 }
 
-/* ----------  CONVERT BUTTON  ---------- */
+//  ─── drag / browse file selection ───────────────────────────
+dz.addEventListener("click", ()=>fileInput.click());
+["dragover","dragenter"].forEach(eName=>
+  dz.addEventListener(eName,e=>{e.preventDefault();dz.classList.add("dragover");})
+);
+["dragleave","drop"].forEach(eName=>
+  dz.addEventListener(eName,()=>dz.classList.remove("dragover"))
+);
+dz.addEventListener("drop", e=>{
+  e.preventDefault(); handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", e=>handleFile(e.target.files[0]));
+
+function handleFile(file){
+  if(!file) return;
+  selectedFile = file;
+  fileInfo.textContent = `📄 ${file.name} • ${(file.size/1024).toFixed(1)} KB`;
+  convertBtn.disabled = false;
+  setPct(0);
+  upStatus.textContent="";
+}
+
+//  ─── convert to PDF ─────────────────────────────────────────
 convertBtn.addEventListener("click", async ()=>{
   if(!selectedFile) return;
-  const formData = new FormData();
-  formData.append("file", selectedFile);
-
-  // UI → busy
-  convertBtn.disabled = true;
-  convertBtn.textContent = "⏳ Converting…";
-  upStatus.textContent = "";
-  pWrap.hidden = false;
+  const fd = new FormData(); fd.append("file", selectedFile);
+  convertBtn.disabled = true; convertBtn.textContent="⏳ Converting…";
+  setPct(10);                              // quick visual start
 
   try{
-    const res = await fetch(`${window.location.origin}/upload`, {
-      method:"POST", body: formData
+    const res = await fetch(`${window.location.origin}/upload`,{
+      method:"POST", body: fd
     });
-    if(!res.ok) throw new Error("Conversion failed");
+    if(!res.ok) throw new Error();
 
-    pBar.style.width = "100%";
-fileInfo.classList.add("flash-success");
-setTimeout(()=>fileInfo.classList.remove("flash-success"),800);
+    // fake mid-progress animation (you don’t stream upload progress)
+    for(const p of [40,70,90,100]) setTimeout(()=>setPct(p), 120*(p/20));
 
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "converted.pdf";
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(()=>{ // ensure bar hits 100 before download dialog
+      const a=document.createElement("a");
+      a.href=url; a.download="converted.pdf";
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      upStatus.textContent="✅ PDF downloaded!"; upStatus.style.color="#16a34a";
+    },500);
 
-    upStatus.style.color = "#16a34a";
-    upStatus.textContent = "✅ PDF downloaded!";
-  }catch(err){
-    upStatus.style.color = "#dc2626";
-    upStatus.textContent = "❌ Conversion failed";
+  }catch{
+    upStatus.textContent="❌ Conversion failed"; upStatus.style.color="#dc2626";
+    circle.classList.add("hidden");
   }finally{
-    convertBtn.disabled = false;
-    convertBtn.textContent = "📎 Convert to PDF";
+    convertBtn.disabled=false; convertBtn.textContent="📎 Convert to PDF";
   }
 });
+
 
       const uploadForm = document.getElementById("uploadForm");
       const uploadBtn = document.getElementById("uploadBtn");
