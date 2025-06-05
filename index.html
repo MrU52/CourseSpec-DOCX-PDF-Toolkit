@@ -36,21 +36,23 @@
 <div class="upload-card">
   <h1><span>📤</span> Convert DOCX to PDF</h1>
 
-  <!-- Dropzone -->
   <div id="dropzone" class="dropzone">
-    <p id="dzMessage">📂 Drag & drop a DOCX here or click to browse</p>
-    <input type="file" id="fileInput" accept=".docx" hidden />
+      <p id="dzMessage">📂 Drag & drop a DOCX here or click to browse</p>
+      <input type="file" id="fileInput" accept=".docx" hidden />
   </div>
 
-  <!-- Progress bar -->
+  <!-- file name / size -->
+  <div id="fileInfo"></div>
+
+  <!-- progress -->
   <div id="progressWrap" class="progress" hidden>
-    <div id="progressBar" class="progress-bar"></div>
+      <div id="progressBar" class="progress-bar"></div>
   </div>
 
-  <!-- Buttons / status -->
-  <button id="convertBtn" disabled style="margin-top:1.5rem;">📎 Convert&nbsp;to&nbsp;PDF</button>
+  <button id="convertBtn" disabled style="margin-top:1.5rem;">📎 Convert to PDF</button>
   <div id="upStatus" style="margin-top:1rem;font-weight:600;"></div>
 </div>
+
 
 
   <script>
@@ -113,6 +115,7 @@ const convertBtn= document.getElementById("convertBtn");
 const upStatus  = document.getElementById("upStatus");
 const pWrap     = document.getElementById("progressWrap");
 const pBar      = document.getElementById("progressBar");
+const fileInfo   = document.getElementById("fileInfo");
 let selectedFile;
 
 /* helpers */
@@ -143,6 +146,8 @@ function handleFile(file){
   dzMsg.textContent = `📄 ${file.name}`;
   convertBtn.disabled = false;
   pWrap.hidden = true; pBar.style.width="0%";
+  fileInfo.textContent = `📄 ${file.name}
+  ${(file.size/1024).toFixed(1)} KB`;
 }
 
 /* ----------  CONVERT BUTTON  ---------- */
@@ -164,6 +169,8 @@ convertBtn.addEventListener("click", async ()=>{
     if(!res.ok) throw new Error("Conversion failed");
 
     pBar.style.width = "100%";
+fileInfo.classList.add("flash-success");
+setTimeout(()=>fileInfo.classList.remove("flash-success"),800);
 
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
