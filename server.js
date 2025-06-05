@@ -1,159 +1,102 @@
+// Required dependencies
 const express = require("express");
-const multer = require("multer");
-const fs = require("fs");
-const PizZip = require("pizzip");
-const Docxtemplater = require("docxtemplater");
-const cors = require("cors");
-const path = require("path");
-const libre = require("libreoffice-convert");
-const mammoth = require("mammoth");
-const puppeteer = require("puppeteer");
+const multer = require("multer"); // Middleware for handling file uploads
+const fs = require("fs"); // File system module for reading/writing files
+const path = require("path"); // Helps build file paths
+const cors = require("cors"); // Cross-origin support
+const libre = require("libreoffice-convert"); // DOCX → PDF conversion
+const PizZip = require("pizzip"); // Zips/unzips DOCX files (they're ZIP files)
+const Docxtemplater = require("docxtemplater"); // For filling template DOCX files
 
+// Initialize express app
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: "10mb" }));
+app.use(express.static(path.join(__dirname)));
 
-// Serve the frontend HTML
+// Middleware
+app.use(cors()); // Enable CORS for all routes
+app.use(express.json({ limit: "10mb" })); // Parse incoming JSON (up to 10MB)
+
+// Path to the template used in DOCX generation
+const TEMPLATE_PATH = path.join(__dirname, "Assets", "template.docx");
+
+// File upload config — multer stores uploaded files in /uploads
+const upload = multer({ dest: "uploads/" });
+
+// Serve frontend HTML when visiting root URL (useful for testing)
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// Use relative path - this will work in both local and tunnel environments
-const TEMPLATE_PATH = path.join(__dirname, "Assets", "template.docx");
 
-// Alternative paths to try
-const POSSIBLE_PATHS = [
-  path.join(__dirname, "Assets", "template.docx"),
-  path.join(__dirname, "template.docx"),
-  path.join(process.cwd(), "Assets", "template.docx"),
-  path.join(process.cwd(), "template.docx")
-];
-
-function findTemplateFile() {
-  for (const templatePath of POSSIBLE_PATHS) {
-    if (fs.existsSync(templatePath)) {
-      console.log(`✅ Found template at: ${templatePath}`);
-      return templatePath;
-    }
-  }
-  return null;
-}
-
-
-
-const upload = multer({ dest: "uploads/" });
-
-// DOCX → PDF conversion
-app.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).send("No file uploaded");
-  }
-
-  const inputPath = req.file.path;
-  const file = fs.readFileSync(inputPath);
-  const outputExt = ".pdf";
-
-  libre.convert(file, outputExt, undefined, (err, done) => {
-    if (err) {
-      console.error("❌ Conversion failed:", err);
-      return res.status(500).send("Conversion failed");
-    }
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=converted.pdf");
-    res.send(done);
-
-    // Cleanup
-    fs.unlinkSync(inputPath);
-  });
-});
-
-
-
-
-
+// ========== [ POST /generate-docx ] ==========
+// Accepts JSON data and fills a Word (DOCX) template with it
+// Responds with a downloadable .docx file
 app.post("/generate-docx", async (req, res) => {
   try {
     const { data } = req.body;
-    if (!data) {
-      return res.status(400).json({ error: "Missing 'data' field in request body" });
-    }
 
-    // Find the template file
-    const templatePath = findTemplateFile();
-    
-    if (!templatePath) {
-      console.error("❌ Template file not found in any of these locations:");
-      POSSIBLE_PATHS.forEach(p => console.error(`   - ${p}`));
-      console.error("📁 Current working directory:", process.cwd());
-      console.error("📁 __dirname:", __dirname);
-      
-      return res.status(500).json({ 
-        error: "Template file not found",
-        searchedPaths: POSSIBLE_PATHS,
-        currentDir: process.cwd(),
-        dirname: __dirname
-      });
-    }
+    // Reject if no data provided
+    if (!data) return res.status(400).json({ error: "Missing 'data' field" });
 
-    // Check file stats
-    const stats = fs.statSync(templatePath);
-    console.log(`📄 Template file size: ${stats.size} bytes`);
-    
-    if (stats.size === 0) {
-      console.error("❌ Template file is empty");
-      return res.status(500).json({ error: "Template file is empty" });
-    }
-
-    // Load the template file
-    const buffer = fs.readFileSync(templatePath);
-    console.log(`📥 Read buffer size: ${buffer.length} bytes`);
-
-    // Create PizZip instance
+    // Read and load the fixed template file
+    const buffer = fs.readFileSync(TEMPLATE_PATH);
     const zip = new PizZip(buffer);
 
+    // Create templater and render with provided data
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true
     });
-
-    // Render with data
-    console.log("🔄 Rendering document with data:", Object.keys(data));
     doc.render(data);
 
-    const docxBuffer = doc.getZip().generate({ type: "nodebuffer" });
-    console.log("✅ Document generated successfully");
+    // Generate final DOCX buffer
+    const output = doc.getZip().generate({ type: "nodebuffer" });
 
+    // Send response with correct headers to prompt file download
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
     res.setHeader("Content-Disposition", "attachment; filename=result.docx");
-    res.send(docxBuffer);
+    res.send(output);
 
   } catch (err) {
-    console.error("❌ Docx generation failed:", err.message);
-    console.error("Stack trace:", err.stack);
-    res.status(500).json({ 
-      error: err.message,
-      details: "Check server logs for more information"
-    });
+    // Log error and return generic message
+    console.error("❌ DOCX generation error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 
+// ========== [ POST /upload ] ==========
+// Accepts a DOCX file and converts it to PDF using LibreOffice
+// Returns a PDF file in the response
+app.post("/upload", upload.single("file"), (req, res) => {
+  // Ensure a file was uploaded
+  if (!req.file) return res.status(400).send("No file uploaded");
+
+  const inputPath = req.file.path;
+  const inputBuffer = fs.readFileSync(inputPath);
+
+  // Convert DOCX buffer to PDF using LibreOffice
+  libre.convert(inputBuffer, ".pdf", undefined, (err, pdfBuffer) => {
+    // Always remove the uploaded temp file
+    fs.unlinkSync(inputPath);
+
+    if (err) {
+      console.error("❌ PDF conversion error:", err);
+      return res.status(500).send("Conversion failed");
+    }
+
+    // Send the converted PDF back to the client
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=converted.pdf");
+    res.send(pdfBuffer);
+  });
+});
 
 
-
-// Start the server
+// ========== [ Start Server ] ==========
+// Launch the Express app on specified port
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`✅ Server is running on port ${PORT}`);
-  console.log(`📁 Current working directory: ${process.cwd()}`);
-  console.log(`📁 __dirname: ${__dirname}`);
-  
-  const templatePath = findTemplateFile();
-  if (templatePath) {
-    console.log(`✅ Template found at: ${templatePath}`);
-  } else {
-    console.log("❌ Template file not found!");
-  }
+  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`📄 Using template: ${TEMPLATE_PATH}`);
 });
