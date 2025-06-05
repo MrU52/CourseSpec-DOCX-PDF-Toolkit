@@ -7,6 +7,9 @@ const cors = require("cors"); // Cross-origin support
 const libre = require("libreoffice-convert"); // DOCX → PDF conversion
 const PizZip = require("pizzip"); // Zips/unzips DOCX files (they're ZIP files)
 const Docxtemplater = require("docxtemplater"); // For filling template DOCX files
+const axios = require("axios"); // Required for fetching remote files
+
+
 
 // Initialize express app
 const app = express();
@@ -31,38 +34,60 @@ app.get("/", (req, res) => {
 // ========== [ POST /generate-docx ] ==========
 // Accepts JSON data and fills a Word (DOCX) template with it
 // Responds with a downloadable .docx file
-app.post("/generate-docx", async (req, res) => {
-  try {
-    const { data } = req.body;
 
-    // Reject if no data provided
+app.post("/generate-docx", upload.single("template"), async (req, res) => {
+  try {
+    const { data, templateUrl } = req.body;
+
     if (!data) return res.status(400).json({ error: "Missing 'data' field" });
 
-    // Read and load the fixed template file
-    const buffer = fs.readFileSync(TEMPLATE_PATH);
-    const zip = new PizZip(buffer);
+    // Parse JSON safely
+    let jsonData;
+    try {
+      jsonData = typeof data === "string" ? JSON.parse(data) : data;
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid JSON format in 'data'" });
+    }
 
-    // Create templater and render with provided data
+    let templateBuffer;
+
+    // Option 1: Use uploaded file
+    if (req.file) {
+      templateBuffer = fs.readFileSync(req.file.path);
+      fs.unlinkSync(req.file.path); // Clean up uploaded file
+    }
+
+    // Option 2: Download template from URL
+    else if (templateUrl) {
+      const response = await axios.get(templateUrl, { responseType: "arraybuffer" });
+      templateBuffer = Buffer.from(response.data);
+    }
+
+    // If neither was provided
+    else {
+      return res.status(400).json({ error: "No template file or URL provided" });
+    }
+
+    const zip = new PizZip(templateBuffer);
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true
     });
-    doc.render(data);
 
-    // Generate final DOCX buffer
+    doc.render(jsonData);
     const output = doc.getZip().generate({ type: "nodebuffer" });
 
-    // Send response with correct headers to prompt file download
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.setHeader("Content-Disposition", "attachment; filename=result.docx");
     res.send(output);
 
   } catch (err) {
-    // Log error and return generic message
     console.error("❌ DOCX generation error:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
+
 
 
 // ========== [ POST /upload ] ==========
