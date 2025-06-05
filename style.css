@@ -93,3 +93,13 @@
 }
 .circle text{fill:#fff;font-size:.55rem;transform:rotate(90deg);}
 .hidden{display:none;}
+
+
+.card input[type="text"],
+.card input[type="file"] {
+  width: 100%;
+  max-width: 100%;
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}

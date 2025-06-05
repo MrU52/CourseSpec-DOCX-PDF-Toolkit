@@ -23,13 +23,40 @@
 </head>
 
 <body>
-  <!-- JSON Input + DOCX Generation -->
   <div class="card" id="card">
-    <h1><span>📄</span> Generate DOCX from JSON</h1>
-    <div id="editor">{ "CourseTitle": "GG", "CourseCode": "AYSM", "ContentTable": [ { "ContentTableTopic": "Intro to JS", "TopicHours": "2" } ] }</div>
-    <button id="generateBtn"><span>🚀</span> Generate DOCX</button>
-    <div id="status"></div>
-  </div>
+  <h1><span>📄</span> Generate DOCX from JSON</h1>
+
+
+
+  <div id="modeButtons" style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 1rem;">
+  <button type="button" class="modeBtn" data-mode="default">Use Default Template</button>
+  <button type="button" class="modeBtn" data-mode="url">Use URL Template</button>
+  <button type="button" class="modeBtn" data-mode="upload">Upload Template</button>
+</div>
+
+
+  <!-- JSON Editor -->
+  <div id="editor">{ "CourseTitle": "GG", "CourseCode": "AYSM", "ContentTable": [ { "ContentTableTopic": "Intro to JS", "TopicHours": "2" } ] }</div>
+
+  <!-- Template URL input -->
+  <div id="urlField" style="margin-top: 1rem; display: none;">
+  <label><b> 🔗Template URL</b></label>
+</div>
+
+  <!-- File upload input -->
+<div id="fileField" style="margin-top: 1rem; display: none;">
+  <label><b>📎 Upload DOCX template:</b></label>
+  <input type="file" id="templateFile" accept=".docx" />
+</div>
+
+
+
+  <!-- Generate button + status -->
+  <button id="generateBtn"><span>🚀</span> Generate DOCX</button>
+  <div id="status"></div>
+</div>
+
+
 
 
 
@@ -71,6 +98,54 @@
       editor.setOptions({ fontSize: "14px", wrap: true });
       gsap.from("#card", { opacity: 0, y: 60, duration: 1 });
 
+
+const exampleJSON = {
+  default: {
+    CourseTitle: "GG",
+    CourseCode: "AYSM",
+    ContentTable: [
+      { ContentTableTopic: "Intro to JS", TopicHours: "2" }
+    ]
+  },
+  url: {
+    templateUrl: "https://example.com/template.docx",
+    data: {
+      CourseTitle: "Web Dev",
+      CourseCode: "WD101",
+      ContentTable: [
+        { ContentTableTopic: "HTML Basics", TopicHours: "3" }
+      ]
+    }
+  },
+  upload: {
+    CourseTitle: "From Upload",
+    CourseCode: "DOCX123",
+    ContentTable: [
+      { ContentTableTopic: "Uploaded Lesson", TopicHours: "1.5" }
+    ]
+  }
+};
+
+// Toggle inputs and editor content
+document.querySelectorAll(".modeBtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const mode = btn.dataset.mode;
+
+    // Toggle visibility
+    document.getElementById("urlField").style.display = (mode === "url") ? "block" : "none";
+    document.getElementById("fileField").style.display = (mode === "upload") ? "block" : "none";
+
+    // Update editor content
+    const example = exampleJSON[mode];
+    const value = JSON.stringify(example, null, 2);
+    editor.setValue(value, -1);
+  });
+});
+
+
+
+
+
       // Beautify the default JSON 
       const raw = editor.getValue();
       editor.setValue(JSON.stringify(JSON.parse(raw), null, 2), -1);
@@ -78,38 +153,75 @@
       
       // DOCX Generation Logic
       const btn = document.getElementById("generateBtn");
-      const status = document.getElementById("status");
-      btn.addEventListener("click", async () => {
-        status.textContent = ""; status.className = "";
-        let jsonData;
-        try { jsonData = JSON.parse(editor.getValue()); } catch (e) {
-          status.textContent = "❌ Invalid JSON";
-          status.classList.add("error");
-          gsap.fromTo(status, { y: -5 }, { y: 0, duration: .2, repeat: 3, yoyo: true });
-          return;
-        }
+const status = document.getElementById("status");
 
-        btn.disabled = true; btn.style.opacity = ".7"; btn.textContent = "⏳ Generating…";
-        try {
-          const res = await fetch(`${window.location.origin}/generate-docx`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: jsonData })
-          });
-          if (!res.ok) throw new Error("Server error");
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url; a.download = "course-spec.docx";
-          document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-          status.textContent = "✅ DOCX downloaded!"; status.classList.add("success");
-          confetti({ particleCount: 100, spread: 70, origin: { y: 0.85 } });
-        } catch (err) {
-          status.textContent = "❌ Failed to generate DOCX"; status.classList.add("error");
-        } finally {
-          btn.disabled = false; btn.style.opacity = "1"; btn.textContent = "🚀 Generate DOCX";
-        }
+btn.addEventListener("click", async () => {
+  status.textContent = ""; status.className = "";
+  let jsonData;
+
+  // Parse editor input
+  try {
+    jsonData = JSON.parse(editor.getValue());
+  } catch (e) {
+    status.textContent = "❌ Invalid JSON";
+    status.classList.add("error");
+    return;
+  }
+
+  // Get templateUrl and file
+  const templateUrl = document.getElementById("templateUrl").value.trim();
+  const templateFile = document.getElementById("templateFile").files[0];
+
+  btn.disabled = true; btn.style.opacity = ".7"; btn.textContent = "⏳ Generating…";
+
+  try {
+    let res;
+
+    if (templateFile) {
+      // 📎 Send FormData with file and JSON string
+      const formData = new FormData();
+      formData.append("template", templateFile);
+      formData.append("data", JSON.stringify(jsonData));
+      res = await fetch(`${window.location.origin}/generate-docx`, {
+        method: "POST",
+        body: formData
       });
+    } else {
+      // 🌐 Use JSON body (with or without templateUrl)
+      const payload = {
+        data: jsonData
+      };
+      if (templateUrl) payload.templateUrl = templateUrl;
+
+      res = await fetch(`${window.location.origin}/generate-docx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    }
+
+    if (!res.ok) throw new Error("Server error");
+
+    const templateSource = res.headers.get("X-Template-Source") || "Unknown source";
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "course-spec.docx";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+
+    status.innerHTML = `✅ DOCX downloaded<br>🧾 <code>${templateSource}</code>`;
+    status.classList.add("success");
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.85 } });
+
+  } catch (err) {
+    status.textContent = "❌ Failed to generate DOCX";
+    status.classList.add("error");
+  } finally {
+    btn.disabled = false; btn.style.opacity = "1"; btn.textContent = "🚀 Generate DOCX";
+  }
+});
+
 
 
       
@@ -186,7 +298,7 @@ convertBtn.addEventListener("click", async ()=>{
     upStatus.textContent="❌ Conversion failed"; upStatus.style.color="#dc2626";
     circle.classList.add("hidden");
   }finally{
-    convertBtn.disabled=false; convertBtn.textContent="📎 Convert to PDF";
+    convertBtn.disabled=false; convertBtn.textContent="🔁 Convert to PDF";
   }
 });
 
