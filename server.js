@@ -49,16 +49,17 @@ if (body?.data?.templateUrl && body?.data?.data) {
 
     const hasFile = req.file != null;
     const hasUrl = body.templateUrl != null;
-    const hasData = body.data != null;
+    const hasData = body.jsonPayload != null;
 
-    if (!hasData) return res.status(400).json({ error: "Missing 'data' field" });
+if (!hasData) return res.status(400).json({ error: "Missing 'jsonPayload' field" });
 
-    let jsonData;
-    try {
-      jsonData = typeof body.data === "string" ? JSON.parse(body.data) : body.data;
-    } catch (e) {
-      return res.status(400).json({ error: "Invalid JSON format in 'data'" });
-    }
+let jsonData;
+try {
+  jsonData = typeof body.jsonPayload === "string" ? JSON.parse(body.jsonPayload) : body.jsonPayload;
+} catch (e) {
+  return res.status(400).json({ error: "Invalid JSON format in 'jsonPayload'" });
+}
+
 
     let templateBuffer;
     let templateSource = "";
