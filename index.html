@@ -86,6 +86,14 @@
 </div>
 
 
+<div class="card">
+  <h1>🌐 Send to n8n</h1>
+  <form id="n8nUploadForm">
+    <input type="file" id="n8nFile" name="file" />
+    <button type="submit">📤 Send File</button>
+  </form>
+  <div id="n8nResponseStatus"></div>
+</div>
 
 
 
@@ -338,6 +346,63 @@ convertBtn.addEventListener("click", async ()=>{
         }
       });
     });
+
+
+
+
+
+
+
+    document.getElementById("n8nUploadForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const fileInput = document.getElementById("n8nFile");
+  const statusDiv = document.getElementById("n8nResponseStatus");
+  const file = fileInput.files[0];
+
+  if (!file) {
+    statusDiv.textContent = "❌ No file selected.";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  statusDiv.textContent = "⏳ Uploading...";
+
+  try {
+    const response = await fetch("https://sarulo.app.n8n.cloud/webhook-test/699ce86b-374a-4eaf-bbd8-23e18801e84d", {
+      method: "POST",
+      body: formData
+    });
+
+    if (!response.ok) throw new Error("Failed to process file");
+
+    const blob = await response.blob();
+
+if (blob.size === 0) {
+  statusDiv.textContent = "❌ Empty file returned – check webhook logic";
+  return;
+}
+
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = "processed_file.docx";
+document.body.appendChild(a);
+a.click();
+a.remove();
+URL.revokeObjectURL(url);
+
+
+    statusDiv.textContent = "✅ File downloaded!";
+    statusDiv.style.color = "#16a34a";
+  } catch (err) {
+    statusDiv.textContent = "❌ Error: " + err.message;
+    statusDiv.style.color = "#dc2626";
+  }
+});
+
   </script>
 </body>
 
