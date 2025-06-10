@@ -1,4 +1,4 @@
-    :root {
+     :root {
       --primary: #3b82f6;
       --primary-dark: #2563eb;
       --glass: rgba(255, 255, 255, 0.55);
@@ -103,3 +103,144 @@
   border-radius: 8px;
   border: 1px solid #ccc;
 }
+
+
+
+
+
+  #genCard {
+    padding: 2rem;
+    border-radius: 20px; background: var(--glass);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    max-width: 900px;
+    margin: 2rem auto;
+    text-align: center;
+  }
+
+  #genCard h1 {
+    margin-bottom: 1.5rem;
+  }
+
+  .modeBtn {
+    padding: 0.5rem 1.2rem;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    background-color: #409eff;
+    color: white;
+    transition: background-color 0.3s;
+  }
+
+  .modeBtn:hover {
+    background-color: #007bff;
+  }
+
+  #editor {
+    margin: 1.5rem auto;
+    padding: 1rem;
+    background: black;
+    color: #f1f1f1;
+    font-family: monospace;
+    text-align: left;
+    border-radius: 8px;
+    width: 90%;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  #urlField, #fileField {
+    margin-top: 1rem;
+  }
+
+  #templateUrl, #templateFile {
+    padding: 0.5rem;
+    width: 80%;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+
+  #generateBtn {
+    margin-top: 2rem;
+    padding: 0.75rem 2rem;
+    font-size: 1.1rem;
+    border-radius: 12px;
+    background-color: #3b82f6;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  #generateBtn:hover {
+    background-color: #2563eb;
+  }
+
+  #status {
+    margin-top: 1.5rem;
+    font-size: 0.95rem;
+    color: #444;
+  }
+
+
+  
+
+
+  .dropzone {
+  border: 2px dashed var(--primary);
+  border-radius: 12px;
+  padding: 2rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+.dropzone.drag {
+  background-color: #dbeafe72;
+  border-color: var(--primary-dark);
+}
+
+
+
+
+/* ── Fancy hover / focus / drag-over effect for .dropzone ─────────────── */
+
+/* ❶ Default look (your existing base may already set these) */
+.dropzone{
+  border:2px dashed var(--primary);
+  border-radius:12px;
+  padding:2rem 1rem;
+  text-align:center;
+  cursor:pointer;
+  transition:
+      background  .25s ease,
+      border-color .25s ease,
+      box-shadow  .25s ease,
+      transform    .25s ease;
+}
+
+/* ❷ Hover with the mouse */
+.dropzone:hover{
+  background:#679fff77;                 /* light tint */
+  border-color:var(--primary-dark);    /* a bit bolder */
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  transform:translateY(-2px);
+}
+
+/* ❸ When file is being dragged over the zone
+      (we add/remove the .drag class in JS)         */
+.dropzone.drag{
+  background:#a8ceff81;                  /* more intense tint */
+  border-color:#1e40af;                /* darkest brand blue */
+  box-shadow:0 8px 22px rgba(0,0,0,.12);
+  transform:scale(1.02);
+}
+
+/* ❹ Keyboard focus (for accessibility) */
+.dropzone:focus-within{
+  outline:3px solid var(--primary);
+  outline-offset:4px;
+}
+
+
+
+

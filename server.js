@@ -39,55 +39,43 @@ const DEFAULT_TEMPLATE_PATH = path.join(__dirname, "Assets", "template.docx");
 
 app.post("/generate-docx", upload.single("template"), async (req, res) => {
   try {
-    const body = req.body;
-    // --- Auto-correct nested "data" wrapping ---
-if (body?.data?.templateUrl && body?.data?.data) {
-  console.warn("⚠️ Detected wrapped JSON, auto-unwrapping...");
-  body.templateUrl = body.data.templateUrl;
-  body.data = body.data.data;
-}
+    // Parse incoming data depending on content type
+    let jsonData;
+    let templateBuffer;
+    let templateSource = '';
 
     const hasFile = req.file != null;
-    const hasUrl = body.templateUrl != null;
-    const hasData = body.jsonPayload != null;
+    const hasUrl = req.body.templateUrl;
+    const hasData = req.body.data;
 
-if (!hasData) return res.status(400).json({ error: "Missing 'jsonPayload' field" });
+    // 📌 Parse `data` safely
+    try {
+      jsonData = typeof req.body.data === "string"
+        ? JSON.parse(req.body.data)
+        : req.body.data;
+    } catch (e) {
+      return res.status(400).json({ error: "❌ Invalid JSON in 'data'" });
+    }
 
-let jsonData;
-try {
-  jsonData = typeof body.jsonPayload === "string" ? JSON.parse(body.jsonPayload) : body.jsonPayload;
-} catch (e) {
-  return res.status(400).json({ error: "Invalid JSON format in 'jsonPayload'" });
-}
+    // 🧩 Choose template source: uploaded file > templateUrl > default
+    if (hasFile) {
+      templateSource = `📎 Uploaded: ${req.file.originalname}`;
+      templateBuffer = fs.readFileSync(req.file.path);
+      fs.unlinkSync(req.file.path); // Clean up temp file
+    } else if (hasUrl) {
+      templateSource = `🌐 From URL: ${req.body.templateUrl}`;
+      const response = await axios.get(req.body.templateUrl, { responseType: "arraybuffer" });
+      templateBuffer = Buffer.from(response.data);
+    } else {
+      templateSource = `📁 Default template`;
+      templateBuffer = fs.readFileSync(DEFAULT_TEMPLATE_PATH);
+    }
 
-
-    let templateBuffer;
-    let templateSource = "";
-
-    console.log("✅ File uploaded:", req.file?.originalname);
-console.log("🌐 templateUrl:", body.templateUrl);
-console.log("📦 data:", body.data);
-
-if (hasFile) {
-  templateSource = `📎 Used uploaded file: ${req.file.originalname}`;
-  templateBuffer = fs.readFileSync(req.file.path);
-  fs.unlinkSync(req.file.path);
-} else if (hasUrl) {
-  templateSource = `🌐 Used template URL: ${body.templateUrl}`;
-  const response = await axios.get(body.templateUrl, { responseType: "arraybuffer" });
-  templateBuffer = Buffer.from(response.data);
-} else {
-  templateSource = `📁 Used default template: ${DEFAULT_TEMPLATE_PATH}`;
-  templateBuffer = fs.readFileSync(DEFAULT_TEMPLATE_PATH);
-}
-
-
-    console.log(`✅ DOCX Generated – ${templateSource}`);
-
+    // 🧠 Render DOCX with docxtemplater
     const zip = new PizZip(templateBuffer);
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
-      linebreaks: true
+      linebreaks: true,
     });
 
     doc.render(jsonData);
@@ -95,8 +83,6 @@ if (hasFile) {
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.setHeader("Content-Disposition", "attachment; filename=result.docx");
-
-    // Optional: send info in header for frontend to read
     res.setHeader("X-Template-Source", templateSource.replace(/[^\x20-\x7E]/g, ''));
     res.send(output);
   } catch (err) {
@@ -104,6 +90,7 @@ if (hasFile) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 
@@ -144,4 +131,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
   console.log(`📄 Using template: ${TEMPLATE_PATH}`);
+  console.log("Incoming request:");
+
 });

@@ -1,409 +1,292 @@
 <!DOCTYPE html>
+<!--
+  CourseSpec DOCX & PDF Toolkit (fully‑commented edition)
+  -----------------------------------------------------
+  Purpose  :  Allow instructors to 
+    1) generate a DOCX file from JSON data + an optional template,
+    2) convert any local DOCX to PDF, and 
+    3) push DOCX and PDF files to an n8n webhook.
+  Audience :  Total beginners – every major step explained in plain English.
+-->
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
-  <title>CourseSpec ⟡ DOCX Generator</title>
+  <title>CourseSpec ⟡ DOCX & PDF Toolkit</title>
 
-
-  <!-- Link to your external stylesheet -->
-<link rel="stylesheet" href="/style.css" />
-
-
-  <!-- Fonts & Libraries -->
-
+  <!-- Local stylesheet for layout & colors (not shown here) -->
+  <link rel="stylesheet" href="/style.css" />
+  <!-- Google font for modern look -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+
+  <!-- Code editor (Ace) for JSON -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.9.6/ace.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.9.6/mode-json.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.9.6/theme-tomorrow_night_bright.min.js" defer></script>
+  <!-- Animation (GSAP) + Confetti -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" defer></script>
-
-  
 </head>
 
 <body>
-  <div class="card" id="card">
-  <h1><span>📄</span> Generate DOCX from JSON</h1>
+<!--
+  ────────────────────────────────────────────────────────────────────────────
+  CARD 1 – n8n Uploader
+  Push any DOCX/PDF to an n8n webhook
+-->
+<div class="card">
+  <h1>🌐 Send to n8n</h1>
 
+  <!-- Upload form with DOCX/PDF support -->
+  <form id="n8nForm">
+    <h3>Upload Your Old File</h3>
+    
+<!-- n8n Upload Dropzone -->
+<div id="n8nDropzone" class="dropzone">
+  <p>📂 Drop / click</p>
+  <input id="n8nInput" type="file" accept=".docx,.pdf" hidden />
+</div>
+<span id="n8nFileInfo"></span>
 
+  <svg id="progress" class="circle hidden" width="48" height="48">
+    <circle cx="24" cy="24" r="22" pathLength="100" />
+    <text x="50%" y="50%" dy=".3em" text-anchor="middle" id="pct">0%</text>
+  </svg>
+  <div id="upStatus"></div>
 
-  <div id="modeButtons" style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 1rem;">
-  <button type="button" class="modeBtn" data-mode="default">Use Default Template</button>
-  <button type="button" class="modeBtn" data-mode="url">Use URL Template</button>
-  <button type="button" class="modeBtn" data-mode="upload">Upload Template</button>
+    <button id="sendUploadedBtn">📤 Send File</button>
+  </form>
+  <div id="n8nStatus"></div>
+
+  <!-- Template preview only -->
+  <h3>🧩 Template Preview</h3>
+  <p><strong>Current Template:</strong> <span id="currentTemplate">Default</span></p>
+  <iframe id="templatePreview" style="width:100%;min-height:500px;border:1px solid #ccc;margin-top:8px;"></iframe>
 </div>
 
-
-  <!-- JSON Editor -->
-  <div id="editor">{ "CourseTitle": "GG", "CourseCode": "AYSM", "ContentTable": [ { "ContentTableTopic": "Intro to JS", "TopicHours": "2" } ] }</div>
-
-  <!-- Template URL input -->
-  <div id="urlField" style="margin-top: 1rem; display: none;">
-  <label><b> 🔗Template URL</b></label>
-</div>
-
-  <!-- File upload input -->
-<div id="fileField" style="margin-top: 1rem; display: none;">
-  <label><b>📎 Upload DOCX template:</b></label>
-  <input type="file" id="templateFile" accept=".docx" />
-</div>
-
-
-
-  <!-- Generate button + status -->
-  <button id="generateBtn"><span>🚀</span> Generate DOCX</button>
+<!--
+  ────────────────────────────────────────────────────────────────────────────
+  CARD 2 – DOCX Generator
+-->
+<div class="card" id="genCard">
+  <h1>📄 Generate DOCX</h1>
+  <div style="display:flex;gap:1rem;justify-content:center">
+    <button class="modeBtn" data-mode="default">Default</button>
+    <button class="modeBtn" data-mode="url">URL</button>
+    <button class="modeBtn" data-mode="upload">Upload</button>
+  </div>
+  <div id="editor">{ "CourseTitle": "GG", "CourseCode": "AYSM" }</div>
+  <div id="urlField" style="display:none"></div>
+  <div id="fileField" style="display:none"><input type="file" id="templateFile" accept=".docx" /></div>
+  <button id="generateBtn">🚀 Generate DOCX</button>
   <div id="status"></div>
 </div>
 
-
-
-
-
-
-  <!-- ⬇ NEW compact upload card (900 px like the first) -->
-<div class="card upload-card">
-  <h1><span>📤</span> Convert DOCX to PDF</h1>
-
-  <!-- Dropzone -->
-  <div id="dropzone" class="dropzone">
-    <p id="dzMessage">📂 Drop DOCX here / click to browse</p>
-    <input type="file" id="fileInput" accept=".docx" hidden />
-  </div>
-
-  <!-- File info + circular progress -->
-  <div class="file-row">
-    <span id="fileInfo"></span>
-
-    <svg id="progressCircle" class="circle hidden" width="48" height="48">
-      <circle cx="24" cy="24" r="22" pathLength="100" />
-      <text x="50%" y="50%" dy=".3em" text-anchor="middle" id="pctTxt">0%</text>
-    </svg>
-  </div>
-
-  <button id="convertBtn" disabled>📎 Convert to PDF</button>
+<!--
+  ────────────────────────────────────────────────────────────────────────────
+  CARD 3 – DOCX → PDF Converter
+-->
+<div class="card" id="pdfCard">
+  <h1>📤 DOCX → PDF</h1>
+  <!-- DOCX → PDF Dropzone -->
+<div id="pdfDropzone" class="dropzone">
+  <p>📂 Drop / click</p>
+  <input id="pdfInput" type="file" accept=".docx" hidden />
+</div>
+<span id="pdfFileInfo"></span>
+  <svg id="progress" class="circle hidden" width="48" height="48">
+    <circle cx="24" cy="24" r="22" pathLength="100" />
+    <text x="50%" y="50%" dy=".3em" text-anchor="middle" id="pct">0%</text>
+  </svg>
+  <button id="convertBtn" disabled>📎 Convert</button>
   <div id="upStatus"></div>
 </div>
 
+<!--
+  ══════════════════════════════════════════════════════════════════════════════
+  SCRIPT – All behavior
+-->
+<script>
+window.addEventListener('load', () => {
+  /* ─── Helpers ─────────────────────────────────────────────────────────── */
+  const $  = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
 
-<div class="card">
-  <h1>🌐 Send to n8n</h1>
-  <form id="n8nUploadForm">
-    <input type="file" id="n8nFile" name="file" />
-    <button type="submit">📤 Send File</button>
-  </form>
-  <div id="n8nResponseStatus"></div>
-</div>
+  const fetchBlob = (url, opts) =>
+    fetch(url, opts).then(r => {
+      if (!r.ok) throw Error(`Server responded ${r.status}`);
+      return r.blob();
+    });
 
-
-
-  <script>
-    // Wait until libraries load
-    window.addEventListener('load', () => {
-      const editor = ace.edit("editor");
-      editor.session.setMode("ace/mode/json");
-      editor.setTheme("ace/theme/tomorrow_night_bright");
-      editor.setOptions({ fontSize: "14px", wrap: true });
-      gsap.from("#card", { opacity: 0, y: 60, duration: 1 });
-
-
-const exampleJSON = {
-  default: {
-    CourseTitle: "GG",
-    CourseCode: "AYSM",
-    ContentTable: [
-      { ContentTableTopic: "Intro to JS", TopicHours: "2" }
-    ]
-  },
-  url: {
-    templateUrl: "https://example.com/template.docx",
-    data: {
-      CourseTitle: "Web Dev",
-      CourseCode: "WD101",
-      ContentTable: [
-        { ContentTableTopic: "HTML Basics", TopicHours: "3" }
-      ]
-    }
-  },
-  upload: {
-    CourseTitle: "From Upload",
-    CourseCode: "DOCX123",
-    ContentTable: [
-      { ContentTableTopic: "Uploaded Lesson", TopicHours: "1.5" }
-    ]
-  }
-};
-
-// Toggle inputs and editor content
-document.querySelectorAll(".modeBtn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const mode = btn.dataset.mode;
-
-    // Toggle visibility
-    document.getElementById("urlField").style.display = (mode === "url") ? "block" : "none";
-    document.getElementById("fileField").style.display = (mode === "upload") ? "block" : "none";
-
-    // Update editor content
-    const example = exampleJSON[mode];
-    const value = JSON.stringify(example, null, 2);
-    editor.setValue(value, -1);
-  });
-});
-
-
-
-
-
-      // Beautify the default JSON 
-      const raw = editor.getValue();
-      editor.setValue(JSON.stringify(JSON.parse(raw), null, 2), -1);
-
-      
-      // DOCX Generation Logic
-      const btn = document.getElementById("generateBtn");
-const status = document.getElementById("status");
-
-btn.addEventListener("click", async () => {
-  status.textContent = ""; status.className = "";
-  let jsonData;
-
-  // Parse editor input
-  try {
-    jsonData = JSON.parse(editor.getValue());
-  } catch (e) {
-    status.textContent = "❌ Invalid JSON";
-    status.classList.add("error");
-    return;
-  }
-
-  // Get templateUrl and file
-  const templateUrl = document.getElementById("templateUrl").value.trim();
-  const templateFile = document.getElementById("templateFile").files[0];
-
-  btn.disabled = true; btn.style.opacity = ".7"; btn.textContent = "⏳ Generating…";
-
-  try {
-    let res;
-
-    if (templateFile) {
-      // 📎 Send FormData with file and JSON string
-      const formData = new FormData();
-      formData.append("template", templateFile);
-      formData.append("data", JSON.stringify(jsonData));
-      res = await fetch(`${window.location.origin}/generate-docx`, {
-        method: "POST",
-        body: formData
-      });
-    } else {
-      // 🌐 Use JSON body (with or without templateUrl)
-      const payload = {
-        data: jsonData
-      };
-      if (templateUrl) payload.templateUrl = templateUrl;
-
-      res = await fetch(`${window.location.origin}/generate-docx`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-    }
-
-    if (!res.ok) throw new Error("Server error");
-
-    const templateSource = res.headers.get("X-Template-Source") || "Unknown source";
-    const blob = await res.blob();
+  const dl = (blob, name) => {
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "course-spec.docx";
-    document.body.appendChild(a); a.click(); a.remove();
+    Object.assign(document.createElement('a'), { href: url, download: name }).click();
     URL.revokeObjectURL(url);
+  };
 
-    status.innerHTML = `✅ DOCX downloaded<br>🧾 <code>${templateSource}</code>`;
-    status.classList.add("success");
-    confetti({ particleCount: 100, spread: 70, origin: { y: 0.85 } });
+  /* ── Ace setup ───────────────────────────────────────── */
+const editor = ace.edit('editor');
+editor.setTheme('ace/theme/tomorrow_night_bright');
+editor.session.setMode('ace/mode/json');
+editor.setOptions({ fontSize: '16px', wrap: true });
 
-  } catch (err) {
-    status.textContent = "❌ Failed to generate DOCX";
-    status.classList.add("error");
-  } finally {
-    btn.disabled = false; btn.style.opacity = "1"; btn.textContent = "🚀 Generate DOCX";
-  }
-});
-
-
-
-      
-
-      // PDF Upload Logic
- //  ─── element refs ───────────────────────────────────────────
-const dz        = document.getElementById("dropzone");
-const dzMsg     = document.getElementById("dzMessage");
-const fileInput = document.getElementById("fileInput");
-const convertBtn= document.getElementById("convertBtn");
-const fileInfo  = document.getElementById("fileInfo");
-const upStatus  = document.getElementById("upStatus");
-const circle    = document.getElementById("progressCircle");
-const pctTxt    = document.getElementById("pctTxt");
-let selectedFile;
-
-//  ─── helpers ────────────────────────────────────────────────
-const setPct = p=>{
-  circle.classList.remove("hidden");
-  circle.querySelector("circle").style.strokeDashoffset = 100 - p;
-  pctTxt.textContent = p + "%";
-  if(p===100) setTimeout(()=>circle.classList.add("hidden"), 800);
-}
-
-//  ─── drag / browse file selection ───────────────────────────
-dz.addEventListener("click", ()=>fileInput.click());
-["dragover","dragenter"].forEach(eName=>
-  dz.addEventListener(eName,e=>{e.preventDefault();dz.classList.add("dragover");})
+/* put the pretty-printed “default” sample in right away */
+editor.setValue(
+  JSON.stringify({ CourseTitle: 'GG', CourseCode: 'AYSM' }, null, 2),
+  -1                  // -1 → keep cursor on line 1
 );
-["dragleave","drop"].forEach(eName=>
-  dz.addEventListener(eName,()=>dz.classList.remove("dragover"))
-);
-dz.addEventListener("drop", e=>{
-  e.preventDefault(); handleFile(e.dataTransfer.files[0]);
-});
-fileInput.addEventListener("change", e=>handleFile(e.target.files[0]));
-
-function handleFile(file){
-  if(!file) return;
-  selectedFile = file;
-  fileInfo.textContent = `📄 ${file.name} • ${(file.size/1024).toFixed(1)} KB`;
-  convertBtn.disabled = false;
-  setPct(0);
-  upStatus.textContent="";
-}
-
-//  ─── convert to PDF ─────────────────────────────────────────
-convertBtn.addEventListener("click", async ()=>{
-  if(!selectedFile) return;
-  const fd = new FormData(); fd.append("file", selectedFile);
-  convertBtn.disabled = true; convertBtn.textContent="⏳ Converting…";
-  setPct(10);                              // quick visual start
-
-  try{
-    const res = await fetch(`${window.location.origin}/upload`,{
-      method:"POST", body: fd
-    });
-    if(!res.ok) throw new Error();
-
-    // fake mid-progress animation (you don’t stream upload progress)
-    for(const p of [40,70,90,100]) setTimeout(()=>setPct(p), 120*(p/20));
-
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    setTimeout(()=>{ // ensure bar hits 100 before download dialog
-      const a=document.createElement("a");
-      a.href=url; a.download="converted.pdf";
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-      upStatus.textContent="✅ PDF downloaded!"; upStatus.style.color="#16a34a";
-    },500);
-
-  }catch{
-    upStatus.textContent="❌ Conversion failed"; upStatus.style.color="#dc2626";
-    circle.classList.add("hidden");
-  }finally{
-    convertBtn.disabled=false; convertBtn.textContent="🔁 Convert to PDF";
-  }
-});
 
 
-      const uploadForm = document.getElementById("uploadForm");
-      const uploadBtn = document.getElementById("uploadBtn");
-      const uploadStatus = document.getElementById("uploadStatus");
-      uploadForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const file = uploadForm.querySelector("input[type=file]").files[0];
-        if (!file) return;
+  /* Preset samples for the three generator modes */
+  const samples = {
+    default: { CourseTitle: 'GG', CourseCode: 'AYSM' },
+    url: { templateUrl: 'https://example.com/template.docx', data: { CourseTitle: 'Web Dev' } },
+    upload: { CourseTitle: 'Uploaded', CourseCode: 'DOCX123' }
+  };
 
-        const formData = new FormData();
-        formData.append("file", file);
-        uploadBtn.disabled = true;
-        uploadBtn.textContent = "⏳ Uploading...";
-        uploadStatus.textContent = "";
+  /* Mode buttons swap the JSON + show/hide URL / file fields */
+  $$('.modeBtn').forEach(btn =>
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.mode;
+      $('#urlField' ).style.display = mode === 'url'    ? 'block' : 'none';
+      $('#fileField').style.display = mode === 'upload' ? 'block' : 'none';
+      editor.setValue(JSON.stringify(samples[mode], null, 2), -1);
+    })
+  );
 
-        try {
-          const res = await fetch(`${window.location.origin}/upload`, {
-            method: "POST", body: formData
-          });
-          if (!res.ok) throw new Error("Conversion failed");
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url; a.download = "converted.pdf";
-          document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-          uploadStatus.textContent = "✅ PDF downloaded!";
-          uploadStatus.style.color = "#16a34a";
-        } catch (err) {
-          uploadStatus.textContent = "❌ Conversion failed";
-          uploadStatus.style.color = "#dc2626";
-        } finally {
-          uploadBtn.disabled = false;
-          uploadBtn.textContent = "📎 Upload & Convert";
-        }
-      });
-    });
+  /* ─── DOCX generator ──────────────────────────────────────────────────── */
+  $('#generateBtn').onclick = async () => {
+    const log = $('#status'); log.textContent = '';
+    let data;
+    try { data = JSON.parse(editor.getValue()); }
+    catch { return (log.textContent = '❌ Invalid JSON'); }
 
+    const tplFile = $('#templateFile').files[0];
+    const tplURL  = $('#templateUrl').value.trim();
 
+    /* Build request */
+    const body = tplFile
+      ? (() => { const f = new FormData();
+                 f.append('template', tplFile);
+                 f.append('data', JSON.stringify(data));
+                 return f; })()
+      : JSON.stringify(Object.assign({ data }, tplURL ? { templateUrl: tplURL } : {}));
 
+    const opts = tplFile
+      ? { method: 'POST', body }
+      : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body };
 
+    $('#generateBtn').disabled = true;
+    try {
+      const blob = await fetchBlob('/generate-docx', opts);
+      dl(blob, 'course-spec.docx');
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.8 } });
+      log.textContent = '✅ DOCX generated!';
+    } catch { log.textContent = '❌ Generation failed'; }
+    $('#generateBtn').disabled = false;
+  };
 
+  /* ─── Universal drop-zone helper ──────────────────────────────────────── */
+  function makeDropzone({ zoneSel, inputSel, infoSel, onFile, dragClass = 'drag' }) {
+    const zone  = $(zoneSel);
+    const input = $(inputSel);
+    const info  = $(infoSel);
 
+    zone.onclick = () => input.click();
 
-    document.getElementById("n8nUploadForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
+    ['dragover','dragenter'].forEach(e =>
+      zone.addEventListener(e, evt => { evt.preventDefault(); zone.classList.add(dragClass); })
+    );
+    ['dragleave','drop'].forEach(e =>
+      zone.addEventListener(e, () => zone.classList.remove(dragClass))
+    );
 
-  const fileInput = document.getElementById("n8nFile");
-  const statusDiv = document.getElementById("n8nResponseStatus");
-  const file = fileInput.files[0];
+    const handle = file => {
+      if (!file) return;
+      info.textContent = `📄 ${file.name}`;
+      onFile(file);
+    };
 
-  if (!file) {
-    statusDiv.textContent = "❌ No file selected.";
-    return;
+    input.onchange   = e => handle(e.target.files[0]);
+    zone.ondrop      = e => { e.preventDefault(); handle(e.dataTransfer.files[0]); };
   }
 
-  const formData = new FormData();
-  formData.append("file", file);
+  /* ─── DOCX → PDF card ─────────────────────────────────────────────────── */
+  let pdfDocx;
+  const pdfProgress = $('#pdfProgress');           // unique progress ring
+  const pdfPct      = $('#pdfPct');
+  makeDropzone({
+    zoneSel : '#pdfDropzone',
+    inputSel: '#pdfInput',
+    infoSel : '#pdfFileInfo',
+    onFile  : f => {
+      pdfDocx = f;
+      $('#convertBtn').disabled = false;
+      pdfProgress.classList.remove('hidden');
+      pdfPct.textContent = '0%';
+      pdfProgress.querySelector('circle').style.strokeDashoffset = 100;
+    }
+  });
 
-  statusDiv.textContent = "⏳ Uploading...";
+  $('#convertBtn').onclick = async () => {
+    if (!pdfDocx) return;
+    $('#convertBtn').disabled = true;
 
-  try {
-    const response = await fetch("https://sarulo.app.n8n.cloud/webhook-test/699ce86b-374a-4eaf-bbd8-23e18801e84d", {
-      method: "POST",
-      body: formData
-    });
+    const bar = pct => {
+      pdfProgress.querySelector('circle').style.strokeDashoffset = 100 - pct;
+      pdfPct.textContent = `${pct}%`;
+    };
 
-    if (!response.ok) throw new Error("Failed to process file");
+    bar(10);
+    try {
+      const form = new FormData(); form.append('file', pdfDocx);
+      const blob = await fetchBlob('/upload', { method: 'POST', body: form });
+      [40,70,90,100].forEach((p,i)=>setTimeout(()=>bar(p),120*i));
+      setTimeout(()=>{
+        dl(blob,'converted.pdf');
+        $('#pdfUpStatus').textContent = '✅ PDF ready';
+      },600);
+    } catch {
+      $('#pdfUpStatus').textContent = '❌ Conversion error';
+    }
+    $('#convertBtn').disabled = false;
+  };
 
-    const blob = await response.blob();
+  /* ─── n8n upload card ─────────────────────────────────────────────────── */
+  let n8nFile;
+  makeDropzone({
+    zoneSel : '#n8nDropzone',
+    inputSel: '#n8nInput',
+    infoSel : '#n8nFileInfo',
+    onFile  : f => n8nFile = f
+  });
 
-if (blob.size === 0) {
-  statusDiv.textContent = "❌ Empty file returned – check webhook logic";
-  return;
-}
+  $('#sendUploadedBtn').onclick = async e => {
+    e.preventDefault();
+    if (!n8nFile) return $('#n8nStatus').textContent = '❌ No file selected';
 
-const url = URL.createObjectURL(blob);
-const a = document.createElement("a");
-a.href = url;
-a.download = "processed_file.docx";
-document.body.appendChild(a);
-a.click();
-a.remove();
-URL.revokeObjectURL(url);
+    const fd = new FormData(); fd.append('file', n8nFile);
+    $('#n8nStatus').textContent = '⏳ Uploading…';
 
+    try {
+      const res  = await fetch('https://sarulo.app.n8n.cloud/webhook-test/699ce86b-374a-4eaf-bbd8-23e18801e84d',
+                               { method:'POST', body: fd });
+      if (!res.ok) throw Error('Upload failed');
+      const blob = await res.blob();
+      if (!blob.size) throw Error('Webhook returned empty file');
+      dl(blob, 'processed_file.docx');
+      $('#n8nStatus').textContent = '✅ File downloaded from n8n';
+    } catch (err) {
+      $('#n8nStatus').textContent = '❌ ' + err.message;
+    }
+  };
 
-    statusDiv.textContent = "✅ File downloaded!";
-    statusDiv.style.color = "#16a34a";
-  } catch (err) {
-    statusDiv.textContent = "❌ Error: " + err.message;
-    statusDiv.style.color = "#dc2626";
-  }
+  /* ─── Default template preview ────────────────────────────────────────── */
+  const tplURL = "https://github.com/MrU52/GitHubBasics/raw/refs/heads/main/Assets/template.docx";
+  $('#templatePreview').src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(tplURL)}`;
+  $('#currentTemplate').textContent = 'Default (GitHub)';
 });
+</script>
 
-  </script>
+
 </body>
-
 </html>
