@@ -93,12 +93,13 @@
   <input id="pdfInput" type="file" accept=".docx" hidden />
 </div>
 <span id="pdfFileInfo"></span>
-  <svg id="progress" class="circle hidden" width="48" height="48">
+<svg id="pdfProgress" class="circle hidden" width="48" height="48">
     <circle cx="24" cy="24" r="22" pathLength="100" />
-    <text x="50%" y="50%" dy=".3em" text-anchor="middle" id="pct">0%</text>
+    <text x="50%" y="50%" dy=".3em" text-anchor="middle"  id="pdfPct">0%</text>
+   
   </svg>
   <button id="convertBtn" disabled>📎 Convert</button>
-  <div id="upStatus"></div>
+<div id="pdfUpStatus"></div>
 </div>
 
 <!--
@@ -136,6 +137,7 @@ editor.setValue(
 );
 
 
+
   /* Preset samples for the three generator modes */
   const samples = {
     default: { CourseTitle: 'GG', CourseCode: 'AYSM' },
@@ -161,7 +163,7 @@ editor.setValue(
     catch { return (log.textContent = '❌ Invalid JSON'); }
 
     const tplFile = $('#templateFile').files[0];
-    const tplURL  = $('#templateUrl').value.trim();
+    const tplURL = $('#templateUrl')?.value.trim() || '';
 
     /* Build request */
     const body = tplFile
