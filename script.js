@@ -56,7 +56,7 @@ function setupDropzone(dropId, fileId, infoId, onFile) {
   };
 }
 
-// n8n Upload with Template Preview
+// n8n Upload with Template Preview and Fallback URL
 let n8nUploadFile;
 setupDropzone('#n8nDrop', '#n8nFile', '#n8nInfo', f => n8nUploadFile = f);
 
@@ -70,16 +70,53 @@ $('#n8nBtn').onclick = async () => {
   fd.append('file', n8nUploadFile);
   $('#n8nStatus').textContent = '⏳ Processing with n8n...';
   
+  // Primary and fallback URLs
+  const primaryUrl = 'https://sarulo.app.n8n.cloud/webhook/699ce86b-374a-4eaf-bbd8-23e18801e84d';
+  const fallbackUrl = 'https://sarulo.app.n8n.cloud/webhook-test/699ce86b-374a-4eaf-bbd8-23e18801e84d';
+  
   try {
-    const res = await fetch('https://sarulo.app.n8n.cloud/webhook/699ce86b-374a-4eaf-bbd8-23e18801e84d', {
-      method: 'POST',
-      body: fd
-    });
+    let res;
+    let usedFallback = false;
     
-    if (!res.ok) throw Error('Upload failed');
+    // Try primary URL first
+    try {
+      res = await fetch(primaryUrl, {
+        method: 'POST',
+        body: fd
+      });
+      
+      // If primary returns bad response, try fallback
+      if (!res.ok) {
+        throw new Error('Primary endpoint failed');
+      }
+    } catch (primaryError) {
+      // Primary failed, try fallback
+      $('#n8nStatus').textContent = '⏳ Trying backup endpoint...';
+      usedFallback = true;
+      
+      try {
+        res = await fetch(fallbackUrl, {
+          method: 'POST',
+          body: fd
+        });
+        
+        if (!res.ok) {
+          throw new Error('Fallback endpoint also failed');
+        }
+      } catch (fallbackError) {
+        throw new Error('Both endpoints failed');
+      }
+    }
+    
     const blob = await res.blob();
+    
+    // Check if file is too small (empty or corrupted)
+    if (blob.size < 1000) { // DOCX files are typically at least 1KB
+      throw Error(`File too small (${blob.size} bytes) - likely empty or corrupted`);
+    }
+    
     download(blob, 'processed_course_spec.docx');
-    $('#n8nStatus').textContent = '✅ File processed and downloaded!';
+    $('#n8nStatus').textContent = `✅ File processed and downloaded!${usedFallback ? ' (via backup)' : ''}`;
   } catch (err) {
     $('#n8nStatus').textContent = '❌ ' + err.message;
   }
@@ -142,6 +179,12 @@ $('#genBtn').onclick = async () => {
     
     if (!res.ok) throw Error('Generation failed');
     const blob = await res.blob();
+    
+    // Check if file is too small (empty or corrupted)  
+    if (blob.size < 1000) { // DOCX files are typically at least 1KB
+      throw Error(`Generated file too small (${blob.size} bytes) - likely empty or corrupted`);
+    }
+    
     download(blob, 'course-spec.docx');
     $('#genStatus').textContent = '✅ Generated!';
   } catch (err) {
@@ -180,6 +223,12 @@ $('#pdfBtn').onclick = async () => {
     
     if (!res.ok) throw Error('Conversion failed');
     const blob = await res.blob();
+    
+    // Check if file is too small (empty or corrupted)
+    if (blob.size < 1000) { // PDF files are typically at least 1KB
+      throw Error(`Converted file too small (${blob.size} bytes) - likely empty or corrupted`);
+    }
+    
     download(blob, 'converted.pdf');
     $('#pdfStatus').textContent = '✅ Converted!';
   } catch (err) {

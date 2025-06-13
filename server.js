@@ -7,6 +7,8 @@ const libre = require("libreoffice-convert");
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const axios = require("axios");
+const unzipper = require('unzipper');
+
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -87,6 +89,40 @@ app.post("/upload", upload.single("file"), (req, res) => {
     res.send(pdfBuffer);
   });
 });
+
+
+
+app.post('/convert-docx-to-xml', upload.single('docx'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('No file uploaded.');
+  }
+
+  const filePath = path.resolve(req.file.path);
+  const xmlChunks = [];
+
+  try {
+    fs.createReadStream(filePath)
+      .pipe(unzipper.Parse())
+      .on('entry', function (entry) {
+        const fileName = entry.path;
+        if (fileName === 'word/document.xml') {
+          entry.on('data', chunk => xmlChunks.push(chunk));
+          entry.on('end', () => {
+            const xml = Buffer.concat(xmlChunks).toString('utf-8');
+            res.setHeader('Content-Type', 'application/xml');
+            res.send(xml);
+            fs.unlink(filePath, () => {}); // clean up uploaded file
+          });
+        } else {
+          entry.autodrain();
+        }
+      });
+  } catch (err) {
+    res.status(500).send('Error processing DOCX file.');
+    fs.unlink(filePath, () => {});
+  }
+});
+
 
 // Start server
 const PORT = process.env.PORT || 3000;
