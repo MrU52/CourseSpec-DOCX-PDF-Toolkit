@@ -71,8 +71,8 @@ $('#n8nBtn').onclick = async () => {
   $('#n8nStatus').textContent = '⏳ Processing with n8n...';
   
   // Primary and fallback URLs
-  const primaryUrl = 'https://sarulo.app.n8n.cloud/webhook/699ce86b-374a-4eaf-bbd8-23e18801e84d';
-  const fallbackUrl = 'https://sarulo.app.n8n.cloud/webhook-test/699ce86b-374a-4eaf-bbd8-23e18801e84d';
+  const primaryUrl = 'https://momoj72734.app.n8n.cloud/webhook/699ce86b-374a-4eaf-bbd8-23e18801e84d';
+  const fallbackUrl = 'https://momoj72734.app.n8n.cloud/webhook-test/699ce86b-374a-4eaf-bbd8-23e18801e84d';
   
   try {
     let res;
